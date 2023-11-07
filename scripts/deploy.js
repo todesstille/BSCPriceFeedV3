@@ -1,27 +1,36 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
 const hre = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const UniswapPathFinder = await hre.ethers.getContractFactory("UniswapPathFinder");
+  const pathFinder = await UniswapPathFinder.deploy();
+  await pathFinder.deployed();
+  const PriceFeed = await hre.ethers.getContractFactory("PriceFeed", {
+    libraries: {
+      UniswapPathFinder: pathFinder.address,
+    },
+  });
+  const priceFeed = await PriceFeed.deploy();
 
-  const lockedAmount = hre.ethers.utils.parseEther("0.001");
-
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
+  await priceFeed.deployed();
 
   console.log(
-    `Lock with ${ethers.utils.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
+    `PriceFeed deployed to ${priceFeed.address}`
   );
+  console.log(
+    `Library deployed to ${pathFinder.address}`
+  );
+
+  let tx = await priceFeed.__PriceFeed_init([
+    ["0", "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3", "0"],
+    ["1", "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2", "100"],
+    ["1", "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2", "500"],
+    ["1", "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2", "2500"],
+    ["1", "0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2", "10000"],
+  ]);
+ await tx.wait();
+
+ console.log("Pools are set");
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
